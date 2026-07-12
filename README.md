@@ -1,8 +1,8 @@
-# Night Porter — AI front desk for hotels
+# SunnyDesk — AI front desk for hotels
 
 single-file static site (`index.html`) — no build step, no dependencies.
-the hotel end-to-end consulting pitch (website concierge / phone agent / check-in kiosk +
-RFID / lock install), by Jace AI Solutions. bright + modern style.
+standalone hotel end-to-end consulting business: website concierge / phone agent /
+check-in kiosk + RFID / lock install. bright + modern style.
 
 deployed on Render as a static site (publish path `.`), auto-deploys on push to main.
 
