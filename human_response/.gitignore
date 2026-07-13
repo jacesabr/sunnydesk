@@ -1,0 +1,6 @@
+# AI working logs -- local by default. delete this file to commit them.
+*
+!.gitignore
+!README.md
+!_template.md
+!_index.md

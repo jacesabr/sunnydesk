@@ -1,0 +1,13 @@
+{
+  "name": "sunnydesk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SunnyDesk — AI front desk for hotels. Static marketing site + a zero-dependency demo backend (voice agent, self-serve site scraper, mock booking engine).",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server/server.js"
+  }
+}

@@ -69,6 +69,8 @@
   .btn-wa:hover{background:var(--green-deep)}
   .btn-ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
   .btn-ghost:hover{border-color:#c9d4e4}
+  .btn-demo{background:linear-gradient(135deg,var(--blue),var(--indigo));color:#fff;box-shadow:0 8px 20px -8px rgba(37,99,235,.55)}
+  .btn-demo:hover{filter:brightness(1.05)}
   .btn-sm{padding:9px 18px;font-size:14px}
   @media(max-width:840px){.nav-links a:not(.btn){display:none}}
 
@@ -251,6 +253,123 @@
   }
   .wa-float:hover{transform:scale(1.07)}
 
+  /* ---------- live demo section ---------- */
+  .demo{background:linear-gradient(180deg,#fff,#f2f6ff 60%,#fff)}
+  .demo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .dhotel{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px;box-shadow:var(--card-shadow);display:flex;flex-direction:column;gap:10px;
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .dhotel:hover{transform:translateY(-3px);box-shadow:0 2px 4px rgba(14,27,44,.05),0 20px 44px -16px rgba(14,27,44,.2)}
+  .dhotel .flagrow{display:flex;justify-content:space-between;align-items:center}
+  .dhotel .flag{font-size:28px;line-height:1}
+  .dhotel .lang{font-size:12px;font-weight:700;color:var(--blue-deep);background:#e8efff;border:1px solid #d6e3ff;border-radius:999px;padding:4px 11px}
+  .dhotel h3{font-size:18px;font-weight:700}
+  .dhotel .where{font-size:13px;color:var(--ink-faint);font-weight:600;margin-top:-6px}
+  .dhotel p{font-size:14px;color:var(--ink-soft);flex:1}
+  .dhotel .meta{font-size:12.5px;color:var(--ink-faint)}
+  .btn-call{
+    background:linear-gradient(135deg,var(--blue),var(--indigo));color:#fff;justify-content:center;
+    box-shadow:0 8px 20px -8px rgba(37,99,235,.55);width:100%;
+  }
+  .demo-note{margin-top:18px;text-align:center;font-size:12.5px;color:var(--ink-faint)}
+  @media(max-width:900px){.demo-grid{grid-template-columns:1fr}}
+
+  /* self-serve builder */
+  .build{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--card-shadow);padding:24px;margin-bottom:8px;
+    background:linear-gradient(180deg,#fff,#fbfcff);
+  }
+  .build-head{display:flex;gap:16px;align-items:flex-start;margin-bottom:18px}
+  .build-num{
+    width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+    font-family:'Sora';font-weight:800;font-size:15px;color:#fff;
+    background:linear-gradient(135deg,var(--blue),var(--indigo));
+  }
+  .build-head h3{font-size:20px;font-weight:700}
+  .build-head h3 .grad{background:linear-gradient(100deg,var(--blue),var(--indigo));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .build-head p{font-size:14px;color:var(--ink-soft);margin-top:2px}
+  .build-form{display:grid;grid-template-columns:2fr 1.2fr 1.2fr auto;gap:12px;align-items:end}
+  .bf-field{display:flex;flex-direction:column;gap:6px}
+  .bf-field label{font-size:13px;font-weight:600;color:var(--ink-soft)}
+  .bf-field label .opt{font-weight:400;color:var(--ink-faint)}
+  .bf-field input,.bf-field select{
+    font-family:'Inter';font-size:14.5px;color:var(--ink);
+    border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;background:#fff;outline:none;
+    transition:border-color .15s ease;width:100%;
+  }
+  .bf-field input:focus,.bf-field select:focus{border-color:var(--blue)}
+  .bf-go{justify-content:center;white-space:nowrap;height:44px}
+  .bf-go[disabled]{opacity:.6;cursor:progress}
+  .build-status{margin-top:14px;font-size:14px;color:var(--ink-soft);display:flex;align-items:center;gap:10px}
+  .build-status .spin{width:16px;height:16px;border:2px solid #d6e3ff;border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite;flex:none}
+  .build-status.err{color:#b45309}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .build-result{margin-top:16px;border-top:1px dashed var(--line);padding-top:16px}
+  .br-top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+  .br-name{font-family:'Sora';font-weight:700;font-size:17px}
+  .br-meta{font-size:13px;color:var(--ink-faint);margin-top:2px}
+  .br-rooms{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .br-room{font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--bg-tint);border:1px solid #e0e9fb;border-radius:999px;padding:5px 12px}
+  .br-note{font-size:12px;color:var(--ink-faint);margin-top:12px}
+  @media(max-width:840px){.build-form{grid-template-columns:1fr 1fr}.bf-url{grid-column:1 / -1}.bf-go{grid-column:1 / -1}}
+
+  /* demo call overlay (DOM built by demo/demo-call.js) */
+  .dc-overlay{
+    position:fixed;inset:0;z-index:100;background:rgba(14,27,44,.45);
+    backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:18px;
+  }
+  .dc-overlay.open{display:flex}
+  .dc-panel{
+    background:#fff;border-radius:22px;width:100%;max-width:480px;max-height:92vh;
+    display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 80px -20px rgba(14,27,44,.5);
+  }
+  .dc-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fafcff,#fff)}
+  .dc-hotel{font-family:'Sora';font-weight:700;font-size:16px}
+  .dc-agent{font-size:12.5px;color:var(--ink-faint)}
+  .dc-clock{font-family:'Sora';font-weight:800;font-size:13.5px;color:var(--blue-deep);background:#e8efff;border-radius:999px;padding:4px 12px;flex:none}
+  .dc-state{font-size:12.5px;color:var(--ink-faint);padding:8px 20px;border-bottom:1px solid var(--line)}
+  .dc-stage{flex:1;min-height:170px;max-height:320px;overflow-y:auto;padding:14px 20px;display:flex;flex-direction:column;gap:9px}
+  .dc-cap{max-width:88%;padding:9px 13px;border-radius:14px;font-size:13.5px;line-height:1.45}
+  .dc-cap .who{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.65;margin-bottom:2px}
+  .dc-cap.you{background:var(--bg-tint);border:1px solid #e0e9fb;align-self:flex-end;border-bottom-right-radius:5px}
+  .dc-cap.her{background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;align-self:flex-start;border-bottom-left-radius:5px}
+  .dc-cards{display:flex;gap:10px;overflow-x:auto;padding:0 20px 12px}
+  .dc-cards:empty{display:none}
+  .dc-card{flex:0 0 auto;width:212px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:#fbfcfe;position:relative}
+  .dc-card .t{font-weight:700;font-size:13.5px;margin-bottom:4px;padding-right:44px}
+  .dc-card .l div{font-size:12px;color:var(--ink-soft);margin:2px 0}
+  .dc-card .p{font-weight:700;font-size:13px;color:var(--blue-deep);margin-top:6px}
+  .dc-card .b{position:absolute;top:10px;right:10px;font-size:10.5px;font-weight:700;color:#92600a;background:var(--bg-warm);border:1px solid #ecc98a;border-radius:999px;padding:2px 8px}
+  .dc-card.k-confirm{border-color:#c9eed6;background:#f2fcf6}
+  .dc-card.k-confirm .p{color:var(--green-deep)}
+  .dc-foot{display:flex;align-items:center;gap:12px;padding:12px 20px;border-top:1px solid var(--line)}
+  .dc-end{
+    font-family:'Inter';font-weight:600;font-size:13.5px;color:#b91c1c;background:#fef2f2;
+    border:1.5px solid #fecaca;border-radius:999px;padding:8px 18px;cursor:pointer;flex:none;
+  }
+  .dc-end:hover{background:#fee2e2}
+  .dc-note{font-size:11px;color:var(--ink-faint)}
+
+  /* ---------- "no api" band ---------- */
+  .noapi{background:var(--bg-warm)}
+  .noapi-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:32px;align-items:center}
+  .noapi ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+  .noapi li{display:flex;gap:11px;font-size:14.5px;color:var(--ink-soft)}
+  .noapi li svg{flex:none;margin-top:3px}
+  .noapi-card{
+    background:#fff;border:1px solid #ecdcc0;border-radius:var(--radius);box-shadow:var(--card-shadow);
+    padding:22px;font-size:14px;color:var(--ink-soft);
+  }
+  .noapi-card .row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px dashed #eadfc8}
+  .noapi-card .row:last-child{border-bottom:none}
+  .noapi-card .row b{color:var(--ink);font-size:13.5px}
+  .noapi-card .row small{display:block;color:var(--ink-faint);font-size:12px}
+  .noapi-card .dotc{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;flex:none;background:linear-gradient(135deg,#f59e0b,#f97316)}
+  @media(max-width:840px){.noapi-grid{grid-template-columns:1fr}}
+
   /* reveal on scroll */
   .rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
   .rv.in{opacity:1;transform:none}
@@ -274,6 +393,7 @@
       SunnyDesk <small>AI front desk for hotels</small>
     </a>
     <div class="nav-links">
+      <a href="#demo">Live demo</a>
       <a href="#modules">What we build</a>
       <a href="#process">How it works</a>
       <a href="#contact" class="btn btn-wa btn-sm" data-wa>
@@ -295,11 +415,14 @@
         We install the locks. <b>Take one piece, or the whole stack.</b>
       </p>
       <div class="hero-ctas">
+        <a href="#demo" class="btn btn-demo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Call a live demo agent
+        </a>
         <a href="#" class="btn btn-wa" data-wa>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5.1-1.3A10 10 0 1 0 12 2Zm5.4 14.2c-.2.7-1.3 1.3-1.9 1.3-.5.1-1.1.1-1.8-.1-.4-.1-1-.3-1.7-.6-2.9-1.3-4.8-4.2-4.9-4.4-.1-.2-1.2-1.6-1.2-3s.7-2.1 1-2.4c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.4l.9 2.1c.1.2.1.4 0 .6l-.4.6-.5.5c-.2.2-.3.4-.1.7.2.3.8 1.3 1.7 2.1 1.2 1.1 2.2 1.4 2.5 1.5.3.1.5.1.7-.1l1-1.2c.2-.3.4-.2.7-.1l2 1c.3.1.5.2.6.4 0 .1 0 .6-.2 1.3Z"/></svg>
           Talk to us on WhatsApp
         </a>
-        <a href="#modules" class="btn btn-ghost">See what we build</a>
       </div>
       <div class="hero-props">
         <span class="hero-prop">
@@ -325,6 +448,158 @@
     </div>
   </div>
 </header>
+
+<!-- ================= LIVE DEMO ================= -->
+<section class="demo" id="demo">
+  <div class="wrap">
+    <div class="sec-head rv" style="max-width:720px">
+      <div class="kicker">Try it — talk to one now</div>
+      <h2>Call an AI front desk and just… talk.</h2>
+      <p class="sec-sub">Point it at your own hotel's website, or call one of our example hotels. You speak, it answers —
+      checking rooms, quoting rates, taking a booking. This is a <b>surface-level taste</b>: the real agent also
+      checks live availability, changes and cancels bookings, and handles the complicated requests — grounded in
+      <b>your</b> actual system.</p>
+    </div>
+
+    <!-- builder -->
+    <div class="build rv">
+      <div class="build-head">
+        <div class="build-num">1</div>
+        <div>
+          <h3>Build a demo for <span class="grad">your</span> hotel</h3>
+          <p>We do a quick, surface-level read of your website and spin up an agent that knows your hotel — in seconds.</p>
+        </div>
+      </div>
+      <form id="buildForm" class="build-form">
+        <div class="bf-field bf-url">
+          <label for="bUrl">Your hotel's website</label>
+          <input id="bUrl" type="text" inputmode="url" placeholder="yourhotel.com" autocomplete="off">
+        </div>
+        <div class="bf-field">
+          <label for="bLang">Agent speaks</label>
+          <select id="bLang">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="it">Italian</option>
+            <option value="pt">Portuguese</option>
+            <option value="nl">Dutch</option>
+            <option value="hi">Hindi</option>
+            <option value="ar">Arabic</option>
+            <option value="zh">Mandarin Chinese</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="ru">Russian</option>
+            <option value="tr">Turkish</option>
+            <option value="pl">Polish</option>
+            <option value="sv">Swedish</option>
+            <option value="id">Indonesian</option>
+            <option value="th">Thai</option>
+          </select>
+        </div>
+        <div class="bf-field">
+          <label for="bAgent">Agent's name <span class="opt">(optional)</span></label>
+          <input id="bAgent" type="text" placeholder="e.g. Maya" maxlength="24" autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-demo bf-go">Build my demo</button>
+      </form>
+      <div class="build-status" id="buildStatus" hidden></div>
+      <div class="build-result" id="buildResult" hidden>
+        <div class="br-top">
+          <div>
+            <div class="br-name"></div>
+            <div class="br-meta"></div>
+          </div>
+          <button type="button" class="btn btn-call br-call" data-demo-hotel="" data-hotel-name="" data-agent="">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="br-call-label">Call the front desk</span>
+          </button>
+        </div>
+        <div class="br-rooms"></div>
+        <div class="br-note">Built live from your site · availability &amp; rates are illustrative · nothing real is booked.</div>
+      </div>
+    </div>
+
+    <!-- example hotels -->
+    <div class="sec-head rv" style="margin-top:44px;margin-bottom:18px">
+      <div class="kicker">Or call one we prepared</div>
+      <h3 style="font-size:20px;font-weight:700">Three example hotels, three languages, one agent.</h3>
+    </div>
+    <div class="demo-grid">
+
+      <div class="dhotel rv">
+        <div class="flagrow"><span class="flag">🇮🇳</span><span class="lang">Hindi · English</span></div>
+        <h3>The Amber Haveli</h3>
+        <div class="where">Jaipur, India</div>
+        <p>A restored 19th-century haveli in the old Pink City. Ask Kavya about a courtyard room for the weekend.</p>
+        <div class="meta">Agent: Kavya · ₹ INR</div>
+        <button type="button" class="btn btn-call" data-demo-hotel="amber-haveli" data-hotel-name="The Amber Haveli" data-agent="Kavya">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Call Kavya
+        </button>
+      </div>
+
+      <div class="dhotel rv">
+        <div class="flagrow"><span class="flag">🇩🇪</span><span class="lang">German · English</span></div>
+        <h3>Hotel Lindenhof</h3>
+        <div class="where">Bernkastel-Kues, Mosel, Germany</div>
+        <p>A family-run house on the river with its own vineyard. Ask Greta about a room with a Mosel view.</p>
+        <div class="meta">Agent: Greta · € EUR</div>
+        <button type="button" class="btn btn-call" data-demo-hotel="hotel-lindenhof" data-hotel-name="Hotel Lindenhof" data-agent="Greta">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Call Greta
+        </button>
+      </div>
+
+      <div class="dhotel rv">
+        <div class="flagrow"><span class="flag">🇨🇦</span><span class="lang">English</span></div>
+        <h3>Driftwood Harbour Hotel</h3>
+        <div class="where">Vancouver, Canada</div>
+        <p>A modern boutique by Coal Harbour, steps from the seawall. Ask Maddie about a harbour-view king.</p>
+        <div class="meta">Agent: Maddie · $ CAD</div>
+        <button type="button" class="btn btn-call" data-demo-hotel="driftwood-harbour" data-hotel-name="Driftwood Harbour Hotel" data-agent="Maddie">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Call Maddie
+        </button>
+      </div>
+
+    </div>
+    <p class="demo-note">Fictional demo hotels · mock availability &amp; rates · you'll be asked for microphone access · nothing real is booked.
+    Best in Chrome or Safari. The demo server is free-tier, so the very first call of the day may take a moment to wake.</p>
+  </div>
+</section>
+
+<!-- ================= NO-API BAND ================= -->
+<section class="noapi" id="noapi">
+  <div class="wrap noapi-grid">
+    <div class="rv">
+      <div class="kicker">Works with what you already run</div>
+      <h2>No API? No problem.</h2>
+      <p class="sec-sub" style="margin-bottom:18px">Most hotel software was never built to plug into an AI. Ours doesn't need it to.
+      We put a human-sounding agent <b>in front of</b> whatever you already use — and where there's no integration, the
+      agent operates the very same screens your staff do.</p>
+      <ul>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span><b>Any PMS or booking engine</b> — we integrate by API when one exists, and drive the screens directly when one doesn't.</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span><b>Legacy or in-house systems</b> — even a decades-old desktop tool with no export can sit behind the agent.</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span><b>The same engine runs the kiosk</b> — the check-in screen and RFID card cutter talk to your system the same way.</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span><b>Grounded, never guessing</b> — every room, price and date the agent says comes from a real check against your system.</span></li>
+      </ul>
+    </div>
+    <div class="noapi-card rv">
+      <div class="row"><span class="dotc"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
+        <div><b>Has an API?</b><small>We connect straight to it — fastest and cleanest.</small></div></div>
+      <div class="row"><span class="dotc"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span>
+        <div><b>No API, just screens?</b><small>The agent operates them like a trained employee — securely, in a controlled sandbox.</small></div></div>
+      <div class="row"><span class="dotc"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="8" y="15" width="8" height="3" rx="1"/></svg></span>
+        <div><b>Same brain, every touchpoint</b><small>Website, phone line, and check-in kiosk all run on one agent.</small></div></div>
+    </div>
+  </div>
+</section>
 
 <!-- ================= MODULES ================= -->
 <section class="modules" id="modules">
@@ -613,5 +888,6 @@ document.querySelectorAll(".rv").forEach(el=>io.observe(el));
 
 document.getElementById("year").textContent=new Date().getFullYear();
 </script>
+<script src="demo/demo-call.js" defer></script>
 </body>
 </html>

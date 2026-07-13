@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SunnyDesk demo — build guide</title>
+<style>
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#2a2a2a;background:#fff;
+       max-width:820px;margin:0 auto;padding:40px 20px 90px;line-height:1.62;font-size:15.5px}
+  h1{font-size:24px;font-weight:680;margin:0 0 12px}
+  h2{font-size:17px;font-weight:660;margin:38px 0 10px;padding-top:16px;border-top:1px solid #eee}
+  h3{font-size:14.5px;font-weight:660;margin:22px 0 8px;color:#555}
+  p,li{color:#3a3a3a}
+  ul{padding-left:22px;margin:8px 0}
+  li{margin:5px 0}
+  strong,b{color:#1a1a1a}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin:14px 0;display:block;overflow-x:auto}
+  th,td{border:1px solid #e3e3e3;padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#f7f7f7;font-weight:600}
+  code{background:#f4f4f4;border-radius:4px;padding:1px 5px;font-size:12.8px;color:#b5763a}
+  pre{background:#f7f8fa;border:1px solid #e8e8e8;border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:13px}
+  pre code{background:none;color:#333;padding:0}
+  blockquote{border-left:3px solid #7aa7e0;background:#f2f7fd;margin:14px 0;padding:2px 14px;color:#33475b}
+  .mermaid{margin:18px 0;text-align:center}
+  .lede{font-size:14px;color:#666;margin-bottom:8px}
+</style>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", flowchart: { htmlLabels: true } });
+</script>
+</head>
+<body>
+
+<h1>SunnyDesk demo — build guide</h1>
+<p class="lede">how the live demo on the SunnyDesk site actually works, one build at a time, so you can fix and
+upgrade it later without re-reading all the code. canonical twin: <code>build-guide.md</code>.</p>
+
+<h2>the 30-second picture</h2>
+<ul>
+<li>the marketing site (<code>index.html</code>) is a <b>static page</b> — it holds the demo UI but no keys.</li>
+<li>a small <b>demo backend</b> (<code>server/</code>) holds the OpenAI + Firecrawl keys and does three things:
+    scrape a hotel site, mint a voice-call session, and answer mock tool calls.</li>
+<li>the voice call runs <b>browser ↔ OpenAI directly</b> (WebRTC) — audio never touches our server.</li>
+<li><b>everything hotel-side is mock</b> — availability and reservations are generated in memory; no real
+    database or booking system is ever touched.</li>
+</ul>
+
+<pre class="mermaid">
+flowchart LR
+  V["visitor browser<br/>index.html + demo-call.js"] -->|"1 build my demo"| D["demo backend<br/>server/"]
+  V -->|"2 mint call session"| D
+  V <-->|"3 live voice + tools<br/>WebRTC, no media through us"| O["OpenAI gpt-realtime<br/>voice marin"]
+  D -->|scrape| F[Firecrawl]
+  D -->|"extract + mint"| O
+  D --- M[("in-memory mock:<br/>availability + bookings")]
+</pre>
+
+<h2>the files (what each one is for)</h2>
+<table>
+<tr><th>file</th><th>job</th></tr>
+<tr><td><code>index.html</code></td><td>the whole marketing site + the demo UI (builder form, 3 example cards, call overlay markup in CSS). one file, no build step.</td></tr>
+<tr><td><code>demo/demo-call.js</code></td><td>the browser side of the demo: the builder form, the WebRTC call loop, captions, room cards, the 3-minute timer.</td></tr>
+<tr><td><code>server/server.js</code></td><td>the demo backend: routes, rate limits, the custom-hotel cache, static file serving.</td></tr>
+<tr><td><code>server/realtime.js</code></td><td>mints the short-lived OpenAI session (instructions + tools + voice) for one call.</td></tr>
+<tr><td><code>server/instructions.js</code></td><td>builds the agent's persona prompt for a hotel + language. <b>the "how human it sounds" file.</b></td></tr>
+<tr><td><code>server/engine.js</code></td><td>the six mock tools + the deterministic availability/pricing engine + tool schemas.</td></tr>
+<tr><td><code>server/scrape.js</code></td><td>the self-serve builder: scrape a URL (Firecrawl → plain-fetch fallback) → OpenAI extract → hotel object.</td></tr>
+<tr><td><code>server/languages.js</code></td><td>the list of languages the builder offers.</td></tr>
+<tr><td><code>server/hotels/*.js</code></td><td>the 3 example hotels — pure data, same shape a scrape produces.</td></tr>
+</table>
+
+<blockquote><b>one idea to hold onto:</b> a "hotel" is just a <b>data object</b> (see
+<code>server/hotels/amber-haveli.js</code> for the full shape). The 3 examples are hand-written objects; a
+scraped hotel is the same object built at runtime. <code>engine.js</code> and <code>instructions.js</code>
+don't care which — that's why there's <b>one agent template</b>, not three.</blockquote>
+
+<h2>build 1 — the mock engine (<code>server/engine.js</code>)</h2>
+<p><b>what it is:</b> the agent's tools. six of them, all pure functions over a hotel object, all in memory.</p>
+<ul>
+<li><code>get_hotel_info(topic)</code> — facts by topic; topic <code>"rooms"</code> returns room cards.</li>
+<li><code>get_room_details(room_id)</code> — one room.</li>
+<li><code>check_availability(check_in, check_out, adults, children)</code> — the money tool.</li>
+<li><code>make_reservation(...)</code> — creates a demo booking, returns a reference like <code>AMB-K4Q7</code>.</li>
+<li><code>get_local_recommendations(interest?)</code> — things to do.</li>
+<li><code>escalate_to_staff(reason)</code> — hands off + shows the contact card.</li>
+</ul>
+<h3>how availability is faked (and why it's believable)</h3>
+<ul>
+<li>a <b>deterministic hash</b> of <code>(hotel seed, room id, date)</code> decides how many rooms are free
+    that night, so the same date always gives the same answer within a server run (no random flicker
+    mid-conversation). ~1 night in 7 is sold out; weekends sell out a bit more.</li>
+<li>price = room <code>baseRate</code> × season multiplier × weekend multiplier, rounded. seasons live on
+    each hotel object.</li>
+<li>a real <code>make_reservation</code> <b>subtracts</b> from that night's inventory for the rest of the
+    run, so "you just booked the last one" behaves correctly.</li>
+</ul>
+<p><b>fix/upgrade here when:</b> you want different tools, different pricing, or to swap the mock for a real
+calendar. the tool <b>schemas</b> (what the model is told each tool takes) are at the bottom of this file in
+<code>toolSchemas()</code> — the model only knows what's written there.</p>
+
+<pre class="mermaid">
+flowchart TD
+  A["check_availability called"] --> B{"valid dates<br/>+ party size?"}
+  B -->|no| E["return error string<br/>agent asks the guest"]
+  B -->|yes| C["for each room:<br/>hash → free count<br/>base × season × weekend → price"]
+  C --> D["sort: available first, cheapest first"]
+  D --> G["return rooms + build room cards"]
+</pre>
+
+<h2>build 2 — the persona (<code>server/instructions.js</code>)</h2>
+<p><b>what it is:</b> the prompt that makes the agent sound like a warm human receptionist instead of a bot.
+lifted from our real hotel deployment's persona, structured per OpenAI's Realtime Prompting Guide (labelled
+sections, short CAPITALISED rules, variety + clean-speech rules, hard language pinning).</p>
+<ul>
+<li><b>language</b> — leads in the hotel's language and mirrors the guest; never switches on a stray word.
+    Hindi/German/English have hand-tuned blocks; every other language uses a generic block from the name.</li>
+<li><b>speech &amp; delivery</b> — the "sound human" rules: brief affirmations, a thinking pause, a light
+    laugh at good news, at most one or two touches per reply, and a hard <b>clean-speech rule</b> (never a
+    filler inside a price/date/number).</li>
+<li><b>values</b> — never invent a number; only say what a tool returned this call.</li>
+<li><b>booking flow</b> — collect dates + party → check → offer → confirm → book → read the reference.</li>
+<li><b>honesty</b> — never claim to be human; admit it's a demo if asked; offer escalation beyond the tools.</li>
+</ul>
+<p><b>fix/upgrade here when:</b> the agent says something you don't like. <b>this is almost always a prompt
+fix, not a code fix</b> — change the wording here, redeploy, call it again.</p>
+
+<h2>build 3 — the voice call (<code>server/realtime.js</code> + <code>demo/demo-call.js</code>)</h2>
+<p><b>what it is:</b> the actual phone-like call. the important idea: <b>audio never flows through our
+server</b> — it goes browser ↔ OpenAI over WebRTC. our server only mints a short-lived key and runs the tools.</p>
+<pre class="mermaid">
+sequenceDiagram
+  participant B as browser (demo-call.js)
+  participant D as demo backend
+  participant O as OpenAI realtime
+  B->>D: POST /api/demo/session {hotel}
+  D->>O: mint client secret (instructions + tools + voice marin)
+  O-->>D: ephemeral value
+  D-->>B: value + model
+  B->>O: WebRTC offer (mic) + data channel
+  O-->>B: greeting audio (agent speaks first)
+  O-->>B: response.done → function_call
+  B->>D: POST /api/demo/tool {hotel, name, args}
+  D-->>B: result + ui cards (engine.js)
+  B->>O: function_call_output + response.create
+  O-->>B: spoken answer, grounded in the mock result
+  Note over B: 3:00 timer → endCall
+</pre>
+<ul>
+<li>the browser opens the call by POSTing its WebRTC <b>offer</b> to
+    <code>api.openai.com/v1/realtime/calls</code> with the minted secret, then wires a <b>data channel</b>.</li>
+<li>when the model wants a tool it emits a <code>function_call</code>; <code>demo-call.js</code> calls
+    <code>/api/demo/tool</code>, returns the result as <code>function_call_output</code>, then
+    <code>response.create</code> to let the model speak.</li>
+<li>captions + room cards render from the same events. a <b>3-minute timer</b> ends every call.</li>
+</ul>
+<p><b>fix/upgrade here when:</b> the call won't connect (check the minted-session error + the OpenAI key), or
+you want a longer/shorter cap (<code>CALL_CAP_S</code> in <code>demo-call.js</code>), or a different voice
+(<code>REALTIME_VOICE</code>).</p>
+
+<h2>build 4 — the self-serve builder (<code>server/scrape.js</code>)</h2>
+<p><b>what it is:</b> the "point it at your own hotel" flow. it turns a URL into the same hotel data object the
+examples use, so the agent instantly knows a real hotel. it's a <b>layered chain</b> built for a high-value
+client — no single provider is a single point of failure.</p>
+<pre class="mermaid">
+flowchart LR
+  U["hotel URL"] --> FC["1 Firecrawl<br/>5-key pool, homepage + 2 pages"]
+  FC -->|usable| EX
+  FC -->|"down / blocked"| AP["2 Apify<br/>Website Content Crawler, JS render"]
+  AP -->|usable| EX
+  AP -->|"down / no credit"| PF["3 plain fetch<br/>strip tags"]
+  PF --> EX["OpenAI extract<br/>structured JSON schema"]
+  EX -->|ok| N["normalize<br/>fill defaults, gen rooms/rates"]
+  EX -->|fail| N
+  N --> H["hotel object<br/>cached under a demoId, TTL 30 min"]
+</pre>
+<p>the three fetch layers (in <code>gatherSiteContent</code>), each independent infrastructure:</p>
+<ol>
+<li><b>Firecrawl</b> (primary, best quality) — rotates your <b>5-key pool</b> so a rate-limited key doesn't
+    fail a build, and scrapes <b>more than the homepage</b>: it reads the page's links and pulls up to 2
+    room/about/rates pages (<code>ENRICH_RE</code>) — the biggest lever on quality.</li>
+<li><b>Apify Website Content Crawler</b> (independent backup) — a separate service, so a Firecrawl outage or
+    block doesn't kill the demo. Async run + poll, rotates the Apify token pool. <b>Note:</b> the free Apify
+    tokens in <code>.env</code> are usage-capped (they 403 "hard limit" when spent) — the code is
+    wired-and-ready but needs a <b>funded Apify token</b> to actually serve; until then the chain uses
+    Firecrawl → plain fetch (both working today).</li>
+<li><b>plain fetch</b> (last resort) — a direct HTTP GET + tag-strip; always works for server-rendered sites.</li>
+</ol>
+<p>then <b>OpenAI</b> (<code>gpt-4o-mini</code>, JSON-schema structured output — <b>not Anthropic</b>) pulls
+the name, city, rooms, facts, and writes the greeting <b>in the chosen language</b>; <b>normalize</b> fills
+anything missing (no rates → a plausible band by currency; no rooms → a sensible default set). the result is
+marked <code>source: "scraped"</code>/<code>"generated"</code> and the winning <code>provider</code> is logged.
+the built hotel is cached under a random <code>demoId</code> for 30 minutes, then it's gone.</p>
+<p><b>fix/upgrade here when:</b></p>
+<ul>
+<li>extraction quality is off → edit the prompt + JSON schema in <code>openaiExtract</code>, or the model
+    (<code>DEMO_EXTRACT_MODEL</code>).</li>
+<li>scrapes miss the rooms → widen <code>ENRICH_RE</code> or raise the enrich-page count in <code>firecrawlGather</code>.</li>
+<li>you want the Apify backup live → add a funded <code>APIFY_TOKEN</code>/<code>APIFY_TOKEN_POOL</code> to the
+    Render env; nothing else changes.</li>
+<li>you want an even stronger scraper → Firecrawl's own <code>/extract</code> or a full-site crawl are drop-in
+    upgrades to <code>firecrawlGather</code>.</li>
+</ul>
+
+<h2>build 5 — the site UI (<code>index.html</code> + <code>demo/demo-call.js</code>)</h2>
+<p><b>what it is:</b> the visible page. the demo section has two halves — the <b>builder</b> (URL + language +
+optional agent name → "Build my demo" → a call button appears) and the <b>3 example hotels</b> (instant call
+buttons). there's also a "No API? No problem." band that makes the no-integration selling point.</p>
+<ul>
+<li>every call button carries <code>data-demo-hotel="&lt;id&gt;"</code>; <code>demo-call.js</code> binds them
+    all and opens the same overlay. a built hotel just gets a <code>demoId</code> as its id.</li>
+<li>the demo backend is <b>free-tier and sleeps</b>, so the page pings <code>/api/health</code> when the demo
+    section scrolls into view to pre-wake it, and buttons show a "waking up…" state if needed.</li>
+</ul>
+<p><b>fix/upgrade here when:</b> you want to restyle the demo, add a builder setting (add the field, read it in
+<code>demo-call.js</code>'s submit, accept it in <code>/api/demo/build</code>), or change the copy.</p>
+
+<h2>the moving parts, one table</h2>
+<table>
+<tr><th>piece</th><th>choice now</th><th>why</th><th>change it by</th></tr>
+<tr><td>voice model</td><td><code>gpt-realtime-2.1</code>, voice <code>marin</code></td><td>the exact stack from our real deployment — most human-sounding</td><td>env <code>OPENAI_REALTIME_MODEL</code> / <code>OPENAI_REALTIME_VOICE</code></td></tr>
+<tr><td>extraction model</td><td><code>gpt-4o-mini</code></td><td>cheap, reliable structured output; <b>never Anthropic</b></td><td>env <code>DEMO_EXTRACT_MODEL</code></td></tr>
+<tr><td>scraper</td><td>Firecrawl v2 <code>/scrape</code> markdown</td><td>handles JS sites; plain-fetch fallback</td><td><code>firecrawlScrape</code> in <code>scrape.js</code></td></tr>
+<tr><td>availability</td><td>deterministic hash + seasons</td><td>believable + repeatable, zero storage</td><td><code>engine.js</code> <code>freeCount</code>/<code>nightlyRate</code></td></tr>
+<tr><td>custom cache</td><td>in-memory Map, 30-min TTL, 200 cap</td><td>demos are throwaway; nothing to persist</td><td><code>CUSTOM_TTL</code>/<code>CUSTOM_MAX</code> in <code>server.js</code></td></tr>
+<tr><td>call cap</td><td>3 minutes</td><td>keep OpenAI spend bounded on a public page</td><td><code>CALL_CAP_S</code> in <code>demo-call.js</code></td></tr>
+<tr><td>rate limits</td><td>5 calls &amp; 3 builds / 30 min per IP; daily caps</td><td>public endpoint on our bill</td><td><code>allow(...)</code> calls + <code>DEMO_DAILY_*</code> envs</td></tr>
+</table>
+
+<h2>environment variables</h2>
+<table>
+<tr><th>var</th><th>needed for</th><th>notes</th></tr>
+<tr><td><code>OPENAI_API_KEY</code></td><td>the call + extraction</td><td>required; the demo 503s without it</td></tr>
+<tr><td><code>FIRECRAWL_API_KEY</code></td><td>the self-serve scrape</td><td>optional — falls back to plain fetch, then generated data</td></tr>
+<tr><td><code>OPENAI_REALTIME_MODEL</code></td><td>override the call model</td><td>default <code>gpt-realtime-2.1</code></td></tr>
+<tr><td><code>OPENAI_REALTIME_VOICE</code></td><td>override the voice</td><td>default <code>marin</code></td></tr>
+<tr><td><code>DEMO_EXTRACT_MODEL</code></td><td>override the extractor</td><td>default <code>gpt-4o-mini</code></td></tr>
+<tr><td><code>DEMO_DAILY_CALL_CAP</code></td><td>daily call ceiling</td><td>default 60</td></tr>
+<tr><td><code>DEMO_DAILY_BUILD_CAP</code></td><td>daily build ceiling</td><td>default 120</td></tr>
+<tr><td><code>PORT</code></td><td>server port</td><td>Render sets this</td></tr>
+</table>
+
+<h2>running it locally</h2>
+<pre><code># from the repo root, with the keys in your shell (never commit a .env):
+OPENAI_API_KEY=sk-... FIRECRAWL_API_KEY=fc-... PORT=8799 node server/server.js
+# then open http://localhost:8799</code></pre>
+<ul>
+<li><code>/api/health</code> → shows key presence + which hotels are loaded.</li>
+<li>test tools without a call: <code>POST /api/demo/tool {hotel, name, args}</code>.</li>
+<li>minting a session (<code>POST /api/demo/session {hotel}</code>) costs essentially nothing — just a
+    short-lived secret. an actual <b>call</b> spends realtime minutes, so test those sparingly.</li>
+</ul>
+
+<h2>deploy</h2>
+<ul>
+<li>the <b>static site</b> (<code>sunnydesk</code> on Render) auto-deploys from <code>main</code> — the
+    marketing page + demo UI.</li>
+<li>the <b>demo backend</b> (<code>sunnydesk-demo</code> web service) runs <code>node server/server.js</code>
+    from the same repo and holds the keys. the frontend finds it at
+    <code>https://sunnydesk-demo.onrender.com</code> (see the <code>API</code> constant at the top of
+    <code>demo-call.js</code> — update it if the service name changes).</li>
+</ul>
+
+<h2>roadmap — phone-in (call the agent on a real number)</h2>
+<p>status: <b>planned, not built</b> — blocked on a paid decision (a phone number is real money, and the
+telephony can't be end-to-end tested without one). the pattern is proven in our production hotel deployment
+(<code>Desktop/New folder/server/telephony.js</code> — Twilio + OpenAI SIP), so this is an adaptation, not new
+research.</p>
+<pre class="mermaid">
+flowchart LR
+  C["caller dials a number<br/>US easy via Twilio; +49/other via Telnyx"] --> TW["carrier webhook<br/>on sunnydesk-demo"]
+  TW --> PIN{"which demo?"}
+  PIN -->|"example hotel line"| S1["mint phone session<br/>for that hotel"]
+  PIN -->|"built-your-own: enter PIN"| RES["PIN → demoId<br/>from the build step"] --> S1
+  S1 --> O["OpenAI realtime over SIP<br/>voice marin, phone persona"]
+  O --> C
+</pre>
+<ul>
+<li><b>numbers:</b> a <b>US Twilio</b> number is the easy, cheap start (~$1/mo + usage). other countries (a
+    German +49, etc.) via <b>Telnyx</b> (keys already in <code>.env</code>, balance $0 — needs funding). one
+    number per country is plenty for a demo.</li>
+<li><b>dynamic routing to a custom demo:</b> a phone call has no browser context, so after a visitor builds
+    their demo we show a <b>number + a short PIN</b>; they call, enter the PIN (DTMF), and the webhook maps
+    PIN → the cached <code>demoId</code> and mints that hotel's session. (or dedicated example-hotel lines that
+    skip the PIN.)</li>
+<li><b>persona:</b> <code>instructions.js</code> already has honesty/grounding; the phone variant just adds a
+    "no screen — speak every value" block (the production <code>telephony.js</code> shows the exact pattern).</li>
+<li><b>cost control:</b> per-call minute cap + a per-number daily cap + simple fraud rails before it's public.</li>
+</ul>
+<p><b>decision needed to proceed:</b> which numbers/countries, and the budget (a US number + usage is a few
+dollars a month; testing spends telephony credit). say the word and this becomes a build.</p>
+
+<h2>the honesty rules baked in</h2>
+<ul>
+<li>the page labels demo hotels as fictional and says availability/rates are illustrative.</li>
+<li>the agent admits it's a demo if asked, and is told to offer escalation for anything beyond its tools — so
+    it never pretends a demo limit is a real hotel rule.</li>
+<li><b>grounding:</b> the agent may only state numbers a tool returned in that call — the same rule that runs
+    in production; here the tools just return mock data instead of a live system.</li>
+</ul>
+
+</body>
+</html>

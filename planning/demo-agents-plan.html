@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sunnydesk live demo agents — plan</title>
+<style>
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#2a2a2a;background:#fff;
+       max-width:760px;margin:0 auto;padding:40px 20px 80px;line-height:1.6;font-size:15.5px}
+  h1{font-size:22px;font-weight:650;margin:0 0 14px}
+  h2{font-size:15px;font-weight:650;margin:34px 0 10px;color:#555;text-transform:lowercase}
+  h3{font-size:14px;font-weight:650;margin:24px 0 8px;color:#666}
+  p,li{color:#3a3a3a}
+  ul{padding-left:22px;margin:8px 0}
+  li{margin:4px 0}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin:12px 0}
+  th,td{border:1px solid #e3e3e3;padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#f7f7f7;font-weight:600}
+  code{background:#f4f4f4;border-radius:4px;padding:1px 5px;font-size:13px}
+  blockquote{border-left:3px solid #e8c46a;background:#fdf9ee;margin:12px 0;padding:8px 14px;font-size:14px}
+  hr{border:none;border-top:1px solid #e5e5e5;margin:38px 0}
+  .mermaid{margin:18px 0}
+</style>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+</script>
+</head>
+<body>
+
+<h1>sunnydesk live demo agents — plan</h1>
+
+<blockquote><b>this was the initial plan.</b> the build went further: it also has a <b>self-serve builder</b>
+(paste your hotel URL → we scrape it → a custom agent), a <b>layered scraper</b> (Firecrawl → Apify → plain
+fetch), 18 languages, and a <b>phone-in roadmap</b>. the living, per-build documentation is
+<b>design/build-guide.html</b> — read that to fix/upgrade. this file is kept as the original plan record.</blockquote>
+
+<p>three fictional hotels on the site, each with a <b>callable voice front desk</b> — the same
+gpt-realtime agent (voice <b>marin</b>, same persona engineering) that runs at our real hotel
+deployment. a visitor taps "call the front desk", talks, hears a human-sounding receptionist
+check availability and take a (mock) reservation.</p>
+
+<h2>the three hotels</h2>
+<table>
+<tr><th>hotel</th><th>where</th><th>agent</th><th>leads in</th><th>currency</th></tr>
+<tr><td>The Amber Haveli</td><td>jaipur, india</td><td>Kavya</td><td>hindi (english offered)</td><td>INR</td></tr>
+<tr><td>Hotel Lindenhof</td><td>konz-ish, mosel, germany</td><td>Greta</td><td>german (english offered)</td><td>EUR</td></tr>
+<tr><td>Driftwood Harbour Hotel</td><td>vancouver, canada</td><td>Maddie</td><td>english</td><td>CAD</td></tr>
+</table>
+
+<blockquote><b>note on "dutch":</b> the ask said one agent speaks dutch — the hotel is in germany, so this
+is built as <b>german (deutsch)</b>. if actually dutch was meant, it's a one-field flip
+(<code>primaryLanguage</code> + greeting line in <code>server/hotels/lindenhof.js</code>) — the model speaks dutch too.</blockquote>
+
+<h2>what's mock (everything)</h2>
+<ul>
+<li>hotels, rooms, rates, contacts — all fictional, clearly labeled "demo hotels" on the page.</li>
+<li>availability — generated deterministically per (hotel, room, date): seasons, weekend bumps,
+    ~1 in 7 nights sold out. stable answers within a server run.</li>
+<li>reservations — in-memory only, returns a booking ref like <code>AMB-K4Q7</code>, decrements inventory
+    for the rest of the run. <b>no real database, no real booking system, nothing external touched.</b></li>
+</ul>
+
+<h2>site upgrade (same single-file style)</h2>
+<ul>
+<li>new <b>"call our demo hotels"</b> section right after the hero — 3 cards, tap to call,
+    live captions + room cards in a panel, 3-minute cap per call.</li>
+<li>new <b>"runs on whatever software you already have"</b> band — the no-API story: we put a
+    human-sounding agent <i>in front of</i> any PMS/booking system, even with zero API access
+    (the agent operates the same screens staff use); same system drives kiosks.</li>
+<li>hero gets a "call a demo hotel" CTA; copy tightened.</li>
+</ul>
+
+<h2>hosting + cost control</h2>
+<ul>
+<li>static site stays as-is (auto-deploys on push). a new <b>free</b> render web service
+    <code>sunnydesk-demo</code> (same repo, <code>node server/server.js</code>) holds the openai key and the mock
+    endpoints. free tier sleeps → the page pre-wakes it when the demo section scrolls into view,
+    and the call button shows "waking the demo up…" if needed.</li>
+<li>caps: 3 min per call (client timer), per-ip session + tool limits, global daily session cap.
+    testing spends no realtime minutes: mint + mock tools only, no live call.</li>
+</ul>
+
+<hr>
+
+<h2>the technical side</h2>
+
+<pre class="mermaid">
+flowchart LR
+  V[visitor's browser] -->|page| S[sunnydesk static site\nrender, free]
+  V -->|"POST /api/demo/session (mint)\nPOST /api/demo/tool (mock tools)"| D[sunnydesk-demo\nrender web service, free\nholds OPENAI_API_KEY]
+  V <-->|webrtc audio + data channel\nno media through us| O[openai gpt-realtime\nvoice marin]
+  D -->|client_secrets mint| O
+  D --- M[(in-memory mock:\navailability engine,\nreservations map)]
+</pre>
+
+<p>one call, end to end:</p>
+
+<pre class="mermaid">
+sequenceDiagram
+  participant B as browser
+  participant D as sunnydesk-demo
+  participant O as openai realtime
+  B->>D: POST /api/demo/session {hotel}
+  D->>O: mint client secret (hotel's instructions + tools)
+  O-->>D: ephemeral value
+  D-->>B: value + model
+  B->>O: webrtc offer (mic) + data channel
+  O-->>B: greeting audio (Kavya/Greta/Maddie)
+  O-->>B: response.done with function_call
+  B->>D: POST /api/demo/tool {hotel, name, args}
+  D-->>B: result + ui cards (mock engine)
+  B->>O: function_call_output + response.create
+  O-->>B: spoken answer, grounded in the mock result
+  Note over B: 3:00 timer ends the call
+</pre>
+
+<h3>pieces / choices</h3>
+<table>
+<tr><th>piece</th><th>choice now</th><th>why</th><th>later / alternative</th></tr>
+<tr><td>voice agent</td><td>gpt-realtime-2.1 · voice marin · webrtc direct</td><td>the exact production stack — proven most human-sounding</td><td>swap voices per hotel</td></tr>
+<tr><td>persona</td><td>one shared instruction builder (<code>server/instructions.js</code>), park-hotel persona sections (speech texture, clean-values, grounding) parameterized per hotel</td><td>one quality bar, three flavors; hotels are data-only modules</td><td>per-hotel prompt forks if they diverge</td></tr>
+<tr><td>tools</td><td>6 mock tools: get_hotel_info, get_room_details, check_availability, make_reservation, get_local_recommendations, escalate_to_staff</td><td>enough for a plausible booking conversation, small surface</td><td>confirm_reservation lookup</td></tr>
+<tr><td>availability</td><td>deterministic hash(seed, room, date) + season/weekend multipliers, in-memory bookings subtract</td><td>plausible + repeatable, zero storage</td><td>real calendar feed</td></tr>
+<tr><td>server</td><td>zero-dependency node http (park-hotel pattern), one file + engine + instructions + 3 hotel data files</td><td>nothing to install, render-ready</td><td>—</td></tr>
+<tr><td>hosting</td><td>new free web service <code>sunnydesk-demo</code>; static site unchanged</td><td>key can't live in a static site; free = no new spend</td><td>starter ($7/mo) kills cold starts</td></tr>
+<tr><td>frontend</td><td><code>demo/demo-call.js</code>, copied call loop from the production widget (offer → /v1/realtime/calls, dc tool loop, caption events)</td><td>proven event handling, minimal new surface</td><td>—</td></tr>
+<tr><td>cost caps</td><td>3-min call timer · per-ip 4 sessions/30min · 80 tools/h · 60 sessions/day global</td><td>public endpoint on our openai bill</td><td>tune after launch</td></tr>
+</table>
+
+<h3>decisions to talk about</h3>
+<ul>
+<li><b>dutch vs german</b> — built german; say the word and lindenhof flips to dutch.</li>
+<li><b>free-tier cold starts</b> — pre-wake helps, but a stone-cold first call can still wait ~30–50s;
+    starter plan on <code>sunnydesk-demo</code> ($7/mo) makes it instant, flip anytime.</li>
+<li><b>daily cap size</b> — 60 calls/day ≈ worst case ~3h of realtime audio if everyone talks the
+    full 3 min; raise/lower to taste.</li>
+<li>demo hotels show fictional phone numbers/emails — kept obviously non-dialable.</li>
+</ul>
+
+</body>
+</html>
