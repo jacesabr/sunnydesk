@@ -6,10 +6,8 @@
 (function () {
   "use strict";
 
-  const API =
-    location.hostname === "localhost" || location.hostname === "127.0.0.1" || /sunnydesk-demo/.test(location.hostname)
-      ? ""
-      : "https://sunnydesk-demo.onrender.com";
+  const REMOTE_API = "https://sunnydesk-demo.onrender.com";
+  let API = null;         // resolved on first use — see ensureApi()
   const CALL_CAP_S = 180;
 
   let call = null;        // { pc, dc, mic, audioEl, timer, hotelId }
@@ -172,9 +170,25 @@
     // "switch" / undefined → silent teardown (a new call is taking over)
   }
 
+  // Resolve the backend base URL, memoized. Same-origin ("") ONLY when our Node
+  // backend is actually serving this page — i.e. the deployed backend host, or a
+  // local `node server/server.js` whose /api/health answers. Otherwise (VSCode
+  // Live Preview, file://, the static marketing site) use the deployed backend.
+  function ensureApi() {
+    if (API !== null) return Promise.resolve(API);
+    if (/sunnydesk-demo/.test(location.hostname)) { API = ""; return Promise.resolve(API); }
+    if (location.protocol === "file:") { API = REMOTE_API; return Promise.resolve(API); }
+    return fetch("/api/health")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { API = j && j.ok && Array.isArray(j.hotels) ? "" : REMOTE_API; return API; })
+      .catch(() => { API = REMOTE_API; return API; });
+  }
+
   function wake() {
-    if (awake) return Promise.resolve(true);
-    return fetch(API + "/api/health").then((r) => r.ok && r.json()).then((j) => (awake = !!(j && j.ok))).catch(() => false);
+    return ensureApi().then((base) => {
+      if (awake) return true;
+      return fetch(base + "/api/health").then((r) => r.ok && r.json()).then((j) => (awake = !!(j && j.ok))).catch(() => false);
+    });
   }
 
   function startCall(hotelId, btn) {
