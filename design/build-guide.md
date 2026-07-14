@@ -252,37 +252,70 @@ OPENAI_API_KEY=sk-... FIRECRAWL_API_KEY=fc-... PORT=8799 node server/server.js
 
 ## roadmap — phone-in (call the agent on a real number)
 
-status: **planned, not built** — blocked on a paid decision (a phone number is real money, and the
-telephony can't be end-to-end tested without one). the software pattern is proven in our production
-hotel deployment (`Desktop/New folder/server/telephony.js` — Twilio + OpenAI SIP), so this is an
-adaptation, not new research.
+status: **not built — but the path is researched and decided** (2026-07-14). It's not new research;
+the SIP-webhook pattern is proven in our production hotel deployment (`Desktop/New folder/server/
+telephony.js`). What remains is a paid go-ahead (a number + OpenAI audio minutes cost money).
 
-the shape we'd build:
+**The key finding:** OpenAI's Realtime API accepts **inbound SIP natively** — a call hits a
+`realtime.call.incoming` webhook where YOUR backend sets the per-call `instructions`/`tools`/`voice` at
+the accept step. That accept step *is* the dynamic router: the same webhook can answer as any hotel's
+agent. No third-party voice platform, no throwaway wiring.
+
+### the trial path (fastest, and it becomes production unchanged)
+
+**Telnyx SIP trunk → OpenAI SIP.** Telnyx gives **$5 free credit, no credit card**, one US/CA number.
+Trial caps: 10-min calls, 100/day, 2 concurrent, inbound only from your *verified* phone, number
+reclaimed in 30 days if you don't upgrade. (Twilio's trial is worse for a demo — a "press any key" gate
++ verified-only. Vapi is faster to first-call but adds a permanent $0.05/min platform fee and is
+throwaway.) The `.env` already has `TELNYX_API_KEY`, `OPENAI_PROJECT_ID`, `OPENAI_WEBHOOK_SECRET`.
 
 ```mermaid
 flowchart LR
-  C[caller dials a number<br/>US easy via Twilio; +49/other via Telnyx] --> TW[carrier webhook<br/>on sunnydesk-demo]
-  TW --> PIN{which demo?}
-  PIN -->|example hotel line| S1[mint phone session<br/>for that hotel]
-  PIN -->|"built-your-own: enter PIN"| RES[PIN → demoId<br/>from the build step] --> S1
-  S1 --> O[OpenAI realtime over SIP<br/>voice marin, phone persona]
-  O --> C
+  C[caller dials the Telnyx number] --> TX[Telnyx Elastic SIP trunk]
+  TX -->|"sip:$PROJECT_ID@sip.api.openai.com;transport=tls"| OAI[OpenAI answers SIP]
+  OAI -->|"webhook: realtime.call.incoming (call_id, sip_headers)"| BE[our backend /openai/incoming]
+  BE -->|"which hotel? (To header in prod / spoken code on the trial number)"| BE
+  BE -->|"POST /v1/realtime/calls/$CALL_ID/accept + hotel instructions/tools/voice"| OAI
+  OAI <-->|voice, gpt-realtime marin| C
 ```
 
-- **numbers:** a **US Twilio** number is the easy, cheap start (~$1/mo + usage). other countries
-  (a German +49, etc.) are available via **Telnyx** (keys already in `.env`, balance currently $0 —
-  needs funding). one number per country is plenty for a demo.
-- **dynamic routing to a custom demo:** a phone call has no browser context, so after a visitor builds
-  their demo on the site we'd show a **number + a short PIN**; they call, enter the PIN (DTMF), and the
-  webhook maps PIN → the cached `demoId` and mints that hotel's session. (alternatively, dedicated
-  example-hotel lines that skip the PIN.)
-- **persona:** `instructions.js` already has the honesty/grounding rules; the phone variant just adds a
-  "no screen — speak every value" block (the production `telephony.js` shows the exact pattern).
-- **cost control:** same rate limits + a hard per-call minute cap; a phone line is more abusable than a
-  web widget, so a per-number daily cap and simple fraud rails matter before it's public.
+### dynamic per-call routing (the "which hotel" problem)
 
-decision needed to proceed: **which numbers/countries, and the budget** (a US number + usage is a few
-dollars a month; testing spends telephony credit). say the word and this becomes a build.
+- **production (many numbers):** one dedicated DID per hotel; read the `To` SIP header in the webhook →
+  look up that hotel → accept with its config. No PIN.
+- **trial (single number):** accept as a lightweight **greeter** agent that asks for the short code the
+  site issued when the visitor built their demo; a lookup tool resolves code → `demoId`, then push the
+  real agent mid-call with a `session.update`. (DTMF also works; spoken code is simplest.)
+
+### concrete wiring (10 steps)
+
+1. **OpenAI:** note the project id (`proj_…`); set a webhook at platform.openai.com → Settings →
+   Project → Webhooks pointing at `POST /openai/incoming`; copy `OPENAI_WEBHOOK_SECRET`.
+2. **Telnyx:** sign up ($5, no card); buy one US/CA local voice number.
+3. **Trunk:** create an Elastic SIP Trunk; set origination to
+   `sip:$OPENAI_PROJECT_ID@sip.api.openai.com;transport=tls`; assign the number; allowlist OpenAI's SIP IPs.
+4. **Trial only:** add your mobile as a Verified Caller ID.
+5. **Backend webhook:** verify the signature with `OPENAI_WEBHOOK_SECRET`; handle
+   `realtime.call.incoming`; read `call_id` + `sip_headers`.
+6. **Route:** prod → `hotel = lookup(To header)`; trial → greeter agent asks for the site code.
+7. **Accept:** `POST https://api.openai.com/v1/realtime/calls/$CALL_ID/accept` (Bearer `OPENAI_API_KEY`)
+   with `{type:"realtime", model:"gpt-realtime", voice, instructions:<hotel prompt>, tools:<hotel tools>}`.
+8. **Control WS (tools / trial swap):** `wss://api.openai.com/v1/realtime?call_id=$CALL_ID`; on the
+   greeter's code-lookup result send `session.update` to morph into the resolved hotel.
+9. **Escalate/end:** `/v1/realtime/calls/$CALL_ID/refer` transfers to a human; `/hangup` ends; `/reject`.
+10. **Demo:** from your verified phone, call the number → greeter → say the code → you're on the
+    dynamically-built agent. Reuse the existing phone persona block from `telephony.js`.
+
+### costs & caveats
+
+- **telco is pennies** (Telnyx inbound SIP ~$0.003/min, number ~$1/mo). The real cost is **OpenAI
+  Realtime audio** — commonly cited ~$0.15–0.30/min blended; **verify the current gpt-realtime rate**
+  before pricing the product (the research didn't pin it down).
+- **native OpenAI SIP is beta and reportedly flaky** (July 2026: some inbound failures, REFER 500s) —
+  build retry/timeout on accept and keep a fallback (a WebSocket media-stream bridge, or immediate
+  human-transfer). This is the main architecture decision.
+- **paid decisions:** upgrade Telnyx before showing a real hotel (trial is self-demo only); per-DID vs
+  PIN routing; SIP-primary vs WebSocket-fallback.
 
 ## the honesty rules baked in
 
