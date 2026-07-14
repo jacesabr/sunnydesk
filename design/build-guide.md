@@ -252,9 +252,15 @@ OPENAI_API_KEY=sk-... FIRECRAWL_API_KEY=fc-... PORT=8799 node server/server.js
 
 ## roadmap — phone-in (call the agent on a real number)
 
-status: **not built — but the path is researched and decided** (2026-07-14). It's not new research;
-the SIP-webhook pattern is proven in our production hotel deployment (`Desktop/New folder/server/
-telephony.js`). What remains is a paid go-ahead (a number + OpenAI audio minutes cost money).
+status: **the backend code is now BUILT** (`server/telephony.js`, wired at `POST /api/tel/openai`,
+dormant until `OPENAI_WEBHOOK_SECRET` + `OPENAI_PROJECT_ID` are set) — a greeter answers, asks which
+demo hotel, and `session.update`s the live call into that hotel's agent (dynamic per-call routing). The
+signature-verify and hotel-routing are unit-tested. What REMAINS to make it a live line: (1) an OpenAI
+project + its webhook URL/secret set in the dashboard — use a **dedicated project** so it never collides
+with the park-hotel phone line on the shared OpenAI project; (2) `OPENAI_WEBHOOK_SECRET` +
+`OPENAI_PROJECT_ID` on the `sunnydesk-demo` Render env; (3) a Telnyx number + SIP trunk pointed at OpenAI
+SIP; (4) verify your caller ID + place a test call. Steps 2–3 I can do on your word; step 1's dashboard
+config + step 4's call are yours.
 
 **The key finding:** OpenAI's Realtime API accepts **inbound SIP natively** — a call hits a
 `realtime.call.incoming` webhook where YOUR backend sets the per-call `instructions`/`tools`/`voice` at

@@ -14,6 +14,7 @@ import { runTool } from "./engine.js";
 import { mintDemoSession, REALTIME_MODEL, REALTIME_VOICE } from "./realtime.js";
 import { buildHotelFromUrl } from "./scrape.js";
 import { LANGUAGES } from "./languages.js";
+import { handleOpenAiCallWebhook, handleTwilioVoice, setPhoneHotels } from "./telephony.js";
 import amberHaveli from "./hotels/amber-haveli.js";
 import lindenhof from "./hotels/lindenhof.js";
 import driftwood from "./hotels/driftwood.js";
@@ -30,6 +31,7 @@ try {
 } catch { /* no .env — fine on Render */ }
 
 const HOTELS = Object.fromEntries([amberHaveli, lindenhof, driftwood].map((h) => [h.id, h]));
+setPhoneHotels(HOTELS); // the phone greeter offers these
 const PORT = Number(process.env.PORT || 8787);
 
 // custom hotels built from a visitor's own URL — in-memory, TTL 30 min, capped.
@@ -151,10 +153,22 @@ const server = createServer(async (req, res) => {
           plainFetch: true,
         },
         call: `${REALTIME_MODEL} · ${REALTIME_VOICE} (WebRTC direct)`,
+        phone: !!(process.env.OPENAI_WEBHOOK_SECRET && process.env.OPENAI_PROJECT_ID) ? "configured" : "dormant (set OPENAI_WEBHOOK_SECRET + OPENAI_PROJECT_ID)",
         hotels: Object.keys(HOTELS),
         customLive: custom.size,
         callsToday: dayCount.n,
       });
+    }
+
+    // ---- phone channel (dormant until OPENAI_WEBHOOK_SECRET + OPENAI_PROJECT_ID set) ----
+    // the OpenAI webhook needs the RAW body for signature verification — do not JSON-parse it here.
+    if (path === "/api/tel/openai" && req.method === "POST") {
+      if (!allow("tel:" + ip(req), 60, 60_000)) return sendJson(res, 429, { error: "rate limited" });
+      return handleOpenAiCallWebhook(req, res, await readBody(req));
+    }
+    if (path === "/api/tel/twilio" && req.method === "POST") {
+      if (!allow("tel:" + ip(req), 60, 60_000)) return sendJson(res, 429, { error: "rate limited" });
+      return handleTwilioVoice(req, res);
     }
 
     // list the languages the builder offers (GPT-supported)
