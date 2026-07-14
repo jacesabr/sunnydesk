@@ -104,6 +104,48 @@ the key sections it emits, per hotel:
 fix/upgrade here when: the agent says something you don't like. **this is almost always a prompt fix,
 not a code fix.** change the wording here, redeploy, call it again.
 
+## build 2b — voices, and why it sounds human (a settled decision)
+
+**We stay on OpenAI native speech-to-speech. Do NOT propose a TTS pipeline (ElevenLabs, Cartesia, etc.)
+as a "more human" upgrade — the owner has used ElevenLabs and finds it robotic.**
+
+why the architecture is the whole answer:
+
+- **native speech-to-speech** (OpenAI Realtime, Gemini Live, Amazon Nova Sonic): ONE model hears, thinks
+  and speaks. Real prosody, emotion, laughter, and natural barge-in. This is *why* it sounds like a person.
+- **a TTS pipeline** (speech → text → LLM → a TTS voice): the TTS reads generated text. It can be gorgeous
+  in an isolated audio clip and still feel robotic *in conversation* — it's emotionally uniform, and the
+  latency is additive (a beat of dead air before every reply). Nobody experiences a call as isolated clips.
+
+per-agent voice (already wired): each hotel object carries a `voice`, read at
+`server/realtime.js` → `hotel.voice || REALTIME_VOICE`, so every agent can differ.
+
+| agent | voice | note |
+|---|---|---|
+| Kavya (Jaipur) | `marin` | top-tier, bright, natural |
+| Greta (Mosel) | `coral` | warm, friendly, **female** |
+| Miles (Vancouver) | `cedar` | top-tier, warm, **male** |
+
+- OpenAI ships 10 realtime voices; the docs say **"for best quality, use `marin` or `cedar`"** — those two
+  are the only current-generation ones; `coral` is the best of the older tier.
+- **Match the voice's perceived gender to the agent's name.** A female name on a male-perceived voice is a
+  loud uncanny tell — it was a real defect here (Greta was on `cedar`) and it's fixed.
+- Realism beyond the voice is **prompt-driven** (all of this is in `instructions.js`): the variety rule,
+  a turn-length cap, tool preambles ("one moment, let me check"), speech texture, clean-speech for numbers,
+  an explicit **pacing instruction** (the `speed` param only changes playback rate, not composition), and an
+  **accent-stability lock** (drift mid-reply reads as robotic).
+
+if we ever want to A/B another provider, stay in the **same native-S2S class**:
+
+| option | voices / languages | ~cost/min | latency (TTFA) |
+|---|---|---|---|
+| **OpenAI Realtime** (current) | 10 voices; speaks German, Hindi etc. natively | ~$0.30, climbing past $1.50 on long calls (audio context accumulates) | **~0.82s — the leader** |
+| Amazon Nova Sonic | native S2S; EN/FR/IT/DE/ES/PT/HI; polyglot voices that switch language mid-call | ~$0.015–0.02 (~80% cheaper) | ~1.14s |
+| Google Gemini Live | 30 HD voices, 24 languages | ~$0.023 | ~2.98s in one benchmark — likely too slow for a front desk |
+
+(Latency/cost figures are third-party benchmarks — verify before quoting.) To run a second provider,
+widen `hotel.voice` from a string to `{ provider, voice }` and branch in `realtime.js`; nothing else changes.
+
 ## build 3 — the voice call (`server/realtime.js` + `demo/demo-call.js`)
 
 what it is: the actual phone-like call. the important idea is that **audio never flows through our
