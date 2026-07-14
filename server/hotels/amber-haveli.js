@@ -8,6 +8,7 @@ export default {
   primaryLanguage: "hi",
   languageName: "Hindi",
   agentName: "Kavya",
+  voice: "marin",
   timezone: "Asia/Kolkata",
   phone: "+91 141 298 4460",
   email: "frontdesk@amberhaveli.example.com",

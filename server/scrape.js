@@ -265,7 +265,17 @@ const TIER_ADULTS = { standard: 2, double: 2, suite: 3, family: 4 };
 const TIER_CHILD = { standard: 0, double: 1, suite: 1, family: 3 };
 const TIER_SQM = { standard: 20, double: 26, suite: 44, family: 40 };
 
-function normalize(raw, { url, primaryLanguage, languageName, agentName }) {
+// The voices worth offering. OpenAI's docs: "For best quality, use marin or
+// cedar" — those two are the only current-generation Realtime voices; coral is
+// the best of the older tier. Gender is *perceived*, not official, but a voice
+// that fights the agent's name is one of the strongest robot tells.
+export const VOICES = [
+  { id: "marin", label: "Marin — bright, natural (female)", tier: "best" },
+  { id: "cedar", label: "Cedar — warm, grounded (male)", tier: "best" },
+  { id: "coral", label: "Coral — warm, friendly (female)", tier: "good" },
+];
+
+function normalize(raw, { url, primaryLanguage, languageName, agentName, voice }) {
   // accept ANY valid ISO 4217 code (uppercased), not just ones we have a symbol
   // for; fall back to EUR only when it isn't a 3-letter code at all.
   const rawCur = String(raw.currency || "").toUpperCase().trim();
@@ -314,6 +324,9 @@ function normalize(raw, { url, primaryLanguage, languageName, agentName }) {
   return {
     id: "custom",
     custom: true,
+    // the visitor picks the voice (never hash-assigned — a hash can hand a
+    // female-named agent a male-perceived voice, which is a loud uncanny tell)
+    voice: VOICES.some((v) => v.id === voice) ? voice : "marin",
     name,
     city: raw.city || host,
     country,
@@ -355,7 +368,7 @@ function normalize(raw, { url, primaryLanguage, languageName, agentName }) {
 /** Build a demo hotel object from a live URL. Never throws — returns a usable
     hotel plus `source` (scraped/generated) and the `provider` that won, so the
     UI can be honest about a thin read and logs show which layer served it. */
-export async function buildHotelFromUrl({ url, primaryLanguage, languageName, agentName }) {
+export async function buildHotelFromUrl({ url, primaryLanguage, languageName, agentName, voice }) {
   const content = await gatherSiteContent(url);
   let extracted = null, source = "generated";
   const provider = content?.provider || "none";
@@ -366,6 +379,6 @@ export async function buildHotelFromUrl({ url, primaryLanguage, languageName, ag
   if (content) console.log(`[scrape] ${url} → ${provider} (${content.pages} page${content.pages > 1 ? "s" : ""}, ${content.text.length} chars) → ${source}`);
   else console.log(`[scrape] ${url} → no content from any provider → generated`);
   const raw = extracted || { title: content?.title || "", city: "", country: "", rooms: [] };
-  const hotel = normalize(raw, { url, primaryLanguage, languageName, agentName });
+  const hotel = normalize(raw, { url, primaryLanguage, languageName, agentName, voice });
   return { hotel, source, provider };
 }

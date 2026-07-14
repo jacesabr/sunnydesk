@@ -27,6 +27,7 @@ export async function mintDemoSession(hotel) {
   if (!process.env.OPENAI_API_KEY) return { error: "demo not configured (no key)" };
   const instructions = buildInstructions(hotel);
   const tools = toolSchemas(hotel);
+  const voice = hotel.voice || REALTIME_VOICE; // per-agent voice (each hotel can differ)
   const full = {
     type: "realtime",
     model: REALTIME_MODEL,
@@ -39,13 +40,13 @@ export async function mintDemoSession(hotel) {
         transcription: { model: "gpt-4o-mini-transcribe" },
         turn_detection: { type: "semantic_vad", eagerness: "medium" },
       },
-      output: { voice: REALTIME_VOICE },
+      output: { voice },
     },
   };
   let res = await mint(full);
   if (!res.ok) {
     const firstErr = (await res.text()).slice(0, 300);
-    const minimal = { type: "realtime", model: REALTIME_MODEL, instructions, tools, tool_choice: "auto", audio: { output: { voice: REALTIME_VOICE } } };
+    const minimal = { type: "realtime", model: REALTIME_MODEL, instructions, tools, tool_choice: "auto", audio: { output: { voice } } };
     res = await mint(minimal);
     if (!res.ok) return { error: `mint failed: ${firstErr} / ${(await res.text()).slice(0, 300)}` };
     console.warn(`[realtime] full session config rejected, minted minimal: ${firstErr}`);

@@ -8,6 +8,7 @@ export default {
   primaryLanguage: "de",
   languageName: "German",
   agentName: "Greta",
+  voice: "coral",
   timezone: "Europe/Berlin",
   phone: "+49 6531 94 27 30",
   email: "frontdesk@hotel-lindenhof-mosel.example.com",

@@ -300,6 +300,8 @@
       const url = document.getElementById("bUrl").value.trim();
       const language = document.getElementById("bLang").value;
       const agentName = document.getElementById("bAgent").value.trim();
+      const voiceEl = document.getElementById("bVoice");
+      const voice = voiceEl ? voiceEl.value : "marin";
       if (!url) { document.getElementById("bUrl").focus(); return; }
 
       resultEl.hidden = true;
@@ -312,7 +314,7 @@
         fetch(API + "/api/demo/build", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ url, language, agentName }),
+          body: JSON.stringify({ url, language, agentName, voice }),
         }).then((r) => r.json().then((j) => ({ ok: r.ok, j })));
 
       // wake the free-tier server first, then build

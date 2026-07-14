@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { runTool } from "./engine.js";
 import { mintDemoSession, REALTIME_MODEL, REALTIME_VOICE } from "./realtime.js";
-import { buildHotelFromUrl } from "./scrape.js";
+import { buildHotelFromUrl, VOICES } from "./scrape.js";
 import { LANGUAGES } from "./languages.js";
 import { handleOpenAiCallWebhook, handleTwilioVoice, setPhoneHotels } from "./telephony.js";
 import amberHaveli from "./hotels/amber-haveli.js";
@@ -171,8 +171,8 @@ const server = createServer(async (req, res) => {
       return handleTwilioVoice(req, res);
     }
 
-    // list the languages the builder offers (GPT-supported)
-    if (path === "/api/demo/languages") return sendJson(res, 200, { languages: LANGUAGES });
+    // list the languages + voices the builder offers
+    if (path === "/api/demo/languages") return sendJson(res, 200, { languages: LANGUAGES, voices: VOICES });
 
     // self-serve: build a demo agent from the visitor's own hotel URL
     if (path === "/api/demo/build" && req.method === "POST") {
@@ -187,10 +187,11 @@ const server = createServer(async (req, res) => {
       if (isBlockedHost(url)) return sendJson(res, 400, { error: "Enter a public hotel website address." });
       const lang = LANGUAGES.find((l) => l.code === body.language) || LANGUAGES.find((l) => l.code === "en");
       const agentName = (String(body.agentName || "").trim().slice(0, 24) || lang.defaultAgent || "Alex").replace(/[^\p{L}\s'-]/gu, "");
-      console.log(`[demo] build: ${url} · ${lang.code} · ${agentName} (${ip(req)})`);
+      const voice = VOICES.some((v) => v.id === body.voice) ? body.voice : "marin";
+      console.log(`[demo] build: ${url} · ${lang.code} · ${agentName} · ${voice} (${ip(req)})`);
       let built;
       try {
-        built = await buildHotelFromUrl({ url, primaryLanguage: lang.code, languageName: lang.name, agentName });
+        built = await buildHotelFromUrl({ url, primaryLanguage: lang.code, languageName: lang.name, agentName, voice });
       } catch (e) {
         console.error(`[demo] build failed: ${e.message}`);
         return sendJson(res, 502, { error: "We couldn't read that site just now — check the address, or message us on WhatsApp and we'll build it with you." });
